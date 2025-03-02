@@ -89,24 +89,42 @@ const channelInfo = {
         }
     }
 };
-async function sendAutoDeleteMessage(sock, chatId, messageContent) {
-    try {
-        const sentMessage = await sock.sendMessage(chatId, { text: messageContent });
-
-        // Auto-delete after 5 seconds
-        setTimeout(async () => {
-            try {
-                await sock.sendMessage(chatId, { delete: sentMessage.key });
-                console.log('Auto-deleted command response');
-            } catch (error) {
-                console.error('Failed to delete message:', error);
-            }
-        }, 5000); // 5 seconds
-    } catch (error) {
-        console.error('Error sending message:', error);
-    }
 
 async function handleMessages(sock, messageUpdate, printLog) {
+
+  
+    try {
+        const { messages, type } = messageUpdate;
+        if (type !== 'notify') return;
+
+        const message = messages[0];
+        if (!message?.message) return;
+
+        const chatId = message.key.remoteJid;
+        const senderId = message.key.participant || message.key.remoteJid;
+        const isGroup = chatId.endsWith('@g.us');
+
+        let userMessage = message.message?.conversation?.trim().toLowerCase() ||
+            message.message?.extendedTextMessage?.text?.trim().toLowerCase() || '';
+
+        if (userMessage.startsWith('.')) {
+            console.log(`📝 Command detected: ${userMessage}`);
+
+            // Auto-delete the user's command after 5 seconds
+            setTimeout(async () => {
+                try {
+                    await sock.sendMessage(chatId, { delete: message.key });
+                    console.log(`Deleted command: ${userMessage}`);
+                } catch (error) {
+                    console.error('Failed to delete command:', error);
+                }
+            }, 5000);
+
+            // Continue processing the command
+        }
+
+        // Command handling continues..
+    
     try {
         const { messages, type } = messageUpdate;
         if (type !== 'notify') return;
@@ -674,7 +692,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
     }
 }
-}
+
 // Instead, export the handlers along with handleMessages
 module.exports = { 
     handleMessages,
