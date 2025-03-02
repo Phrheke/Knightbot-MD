@@ -89,6 +89,22 @@ const channelInfo = {
         }
     }
 };
+async function sendAutoDeleteMessage(sock, chatId, messageContent) {
+    try {
+        const sentMessage = await sock.sendMessage(chatId, { text: messageContent });
+
+        // Auto-delete after 5 seconds
+        setTimeout(async () => {
+            try {
+                await sock.sendMessage(chatId, { delete: sentMessage.key });
+                console.log('Auto-deleted command response');
+            } catch (error) {
+                console.error('Failed to delete message:', error);
+            }
+        }, 5000); // 5 seconds
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
 
 async function handleMessages(sock, messageUpdate, printLog) {
     try {
@@ -658,7 +674,7 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
     }
 }
-
+}
 // Instead, export the handlers along with handleMessages
 module.exports = { 
     handleMessages,
