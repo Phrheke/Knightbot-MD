@@ -90,41 +90,8 @@ const channelInfo = {
     }
 };
 
+
 async function handleMessages(sock, messageUpdate, printLog) {
-
-  
-    try {
-        const { messages, type } = messageUpdate;
-        if (type !== 'notify') return;
-
-        const message = messages[0];
-        if (!message?.message) return;
-
-        const chatId = message.key.remoteJid;
-        const senderId = message.key.participant || message.key.remoteJid;
-        const isGroup = chatId.endsWith('@g.us');
-
-        let userMessage = message.message?.conversation?.trim().toLowerCase() ||
-            message.message?.extendedTextMessage?.text?.trim().toLowerCase() || '';
-
-        if (userMessage.startsWith('.')) {
-            console.log(`📝 Command detected: ${userMessage}`);
-
-            // Auto-delete the user's command after 5 seconds
-            setTimeout(async () => {
-                try {
-                    await sock.sendMessage(chatId, { delete: message.key });
-                    console.log(`Deleted command: ${userMessage}`);
-                } catch (error) {
-                    console.error('Failed to delete command:', error);
-                }
-            }, 5000);
-
-            // Continue processing the command
-        }
-
-        // Command handling continues..
-    
     try {
         const { messages, type } = messageUpdate;
         if (type !== 'notify') return;
@@ -180,15 +147,29 @@ async function handleMessages(sock, messageUpdate, printLog) {
         }
 
         // Then check for command prefix
-        if (!userMessage.startsWith('.')) {
-            if (isGroup) {
-                // Process non-command messages first
-                await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
-                await Antilink(message, sock);
-                await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
-            }
-            return;
-        }
+        // Then check for command prefix
+if (!userMessage.startsWith('.')) {
+    if (isGroup) {
+        // Process non-command messages first
+        await handleChatbotResponse(sock, chatId, message, userMessage, senderId);
+        await Antilink(message, sock);
+        await handleBadwordDetection(sock, chatId, message, userMessage, senderId);
+    }
+    return;
+}
+
+// Auto-delete all commands (messages starting with .) after 5 seconds
+setTimeout(async () => {
+    try {
+        await sock.sendMessage(chatId, { delete: message.key });
+        console.log(`Deleted command message: ${userMessage}`);
+    } catch (error) {
+        console.error('Failed to delete command message:', error);
+    }
+}, 5000);
+
+// Continue processing the command...
+        
 
         // List of admin commands
         const adminCommands = ['.mute', '.unmute', '.ban', '.unban', '.promote', '.demote', '.kick', '.tagall', '.antilink'];
