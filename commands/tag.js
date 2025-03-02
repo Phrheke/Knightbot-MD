@@ -14,7 +14,7 @@ async function downloadMediaMessage(message, mediaType) {
     return filePath;
 }
 
-async function tagCommand(sock, chatId, senderId, messageText, replyMessage) {
+async function tagCommand(sock, chatId, senderId, messageText, replyMessage, commandMessage) {
     const { isSenderAdmin, isBotAdmin } = await isAdmin(sock, chatId, senderId);
 
     if (!isBotAdmin) {
@@ -23,7 +23,7 @@ async function tagCommand(sock, chatId, senderId, messageText, replyMessage) {
     }
 
     if (!isSenderAdmin) {
-        const stickerPath = './assets/sticktag.webp';  // Path to your sticker
+        const stickerPath = './assets/sticktag.webp';
         if (fs.existsSync(stickerPath)) {
             const stickerBuffer = fs.readFileSync(stickerPath);
             await sock.sendMessage(chatId, { sticker: stickerBuffer });
@@ -35,10 +35,9 @@ async function tagCommand(sock, chatId, senderId, messageText, replyMessage) {
     const participants = groupMetadata.participants;
     const mentionedJidList = participants.map(p => p.id);
 
-    if (replyMessage) {
-        let messageContent = {};
+    let messageContent = {};
 
-        // Handle image messages
+    if (replyMessage) {
         if (replyMessage.imageMessage) {
             const filePath = await downloadMediaMessage(replyMessage.imageMessage, 'image');
             messageContent = {
@@ -46,25 +45,19 @@ async function tagCommand(sock, chatId, senderId, messageText, replyMessage) {
                 caption: messageText || replyMessage.imageMessage.caption || '',
                 mentions: mentionedJidList
             };
-        }
-        // Handle video messages
-        else if (replyMessage.videoMessage) {
+        } else if (replyMessage.videoMessage) {
             const filePath = await downloadMediaMessage(replyMessage.videoMessage, 'video');
             messageContent = {
                 video: { url: filePath },
                 caption: messageText || replyMessage.videoMessage.caption || '',
                 mentions: mentionedJidList
             };
-        }
-        // Handle text messages
-        else if (replyMessage.conversation || replyMessage.extendedTextMessage) {
+        } else if (replyMessage.conversation || replyMessage.extendedTextMessage) {
             messageContent = {
                 text: replyMessage.conversation || replyMessage.extendedTextMessage.text,
                 mentions: mentionedJidList
             };
-        }
-        // Handle document messages
-        else if (replyMessage.documentMessage) {
+        } else if (replyMessage.documentMessage) {
             const filePath = await downloadMediaMessage(replyMessage.documentMessage, 'document');
             messageContent = {
                 document: { url: filePath },
@@ -73,14 +66,25 @@ async function tagCommand(sock, chatId, senderId, messageText, replyMessage) {
                 mentions: mentionedJidList
             };
         }
-
-        if (Object.keys(messageContent).length > 0) {
-            await sock.sendMessage(chatId, messageContent);
-        }
     } else {
-        await sock.sendMessage(chatId, {
+        messageContent = {
             text: messageText || "Tagged message",
             mentions: mentionedJidList
+        };
+    }
+
+    if (Object.keys(messageContent).length > 0) {
+        await sock.sendMessage(chatId, messageContent);
+    }
+
+    // Delete the command message
+    if (commandMessage) {
+        await sock.sendMessage(chatId, {
+            delete: {
+                remoteJid: chatId,
+                fromMe: commandMessage.key.fromMe,
+                id: commandMessage.key.id
+            }
         });
     }
 }
